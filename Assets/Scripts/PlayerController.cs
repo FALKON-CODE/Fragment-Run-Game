@@ -49,11 +49,11 @@ public class PlayerController : MonoBehaviour
     void FixedUpdate()
     {
         // Keep vertical velocity, drive horizontal from input.
-        rb.velocity = new Vector2(moveInput * moveSpeed, rb.velocity.y);
+        rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
 
         if (jumpQueued)
         {
-            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
             jumpQueued = false;
             grounded = false;
         }

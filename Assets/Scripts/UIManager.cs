@@ -108,7 +108,7 @@ public class UIManager : MonoBehaviour
         canvasGo.AddComponent<GraphicRaycaster>();
 
         // An EventSystem is required for buttons to receive clicks.
-        if (FindObjectOfType<EventSystem>() == null)
+        if (FindFirstObjectByType<EventSystem>() == null)
         {
             GameObject es = new GameObject("EventSystem");
             es.AddComponent<EventSystem>();
