@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
@@ -25,6 +26,9 @@ public class UIManager : MonoBehaviour
     private Text levelLabel;
     private Text bannerText;
 
+    private Image fadeImage;
+    private const float FadeDuration = 0.4f;
+
     void Awake()
     {
         if (Instance != null && Instance != this)
@@ -45,6 +49,14 @@ public class UIManager : MonoBehaviour
             BuildMainMenu();
         else
             BuildGameplayUI();
+
+        BuildFade(); // Always on top of every panel.
+    }
+
+    void Start()
+    {
+        // Fade in from black whenever a scene starts.
+        StartCoroutine(Fade(1f, 0f));
     }
 
     void OnDestroy()
@@ -108,6 +120,16 @@ public class UIManager : MonoBehaviour
     {
         GameObject panel = CreateFullScreenPanel("MainMenuPanel", new Color(0.04f, 0.06f, 0.12f, 1f));
 
+        // Use one of the level backgrounds as the menu backdrop (dimmed).
+        Sprite bg = Resources.Load<Sprite>("Art/bg_level3");
+        if (bg != null)
+        {
+            Image bgImage = panel.GetComponent<Image>();
+            bgImage.sprite = bg;
+            bgImage.type = Image.Type.Simple;
+            bgImage.color = new Color(0.45f, 0.5f, 0.6f, 1f);
+        }
+
         CreateText(panel.transform, "FRAGMENT RUN", 96, Accent,
             new Vector2(0, 220), new Vector2(1200, 160), FontStyle.Bold);
         CreateText(panel.transform, "A short cyber platformer", 34,
@@ -159,12 +181,60 @@ public class UIManager : MonoBehaviour
         winPanel.SetActive(false);
     }
 
+    // ----- Scene fade ---------------------------------------------------
+
+    void BuildFade()
+    {
+        GameObject go = new GameObject("Fade", typeof(Image));
+        go.transform.SetParent(canvas.transform, false);
+        go.transform.SetAsLastSibling();
+
+        fadeImage = go.GetComponent<Image>();
+        fadeImage.color = Color.black;      // starts opaque; Start() fades it in.
+        fadeImage.raycastTarget = false;    // never blocks the buttons underneath.
+
+        RectTransform rt = fadeImage.rectTransform;
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+    }
+
+    /// <summary>Fades to black, then loads the requested scene.</summary>
+    public void FadeAndLoad(string sceneName)
+    {
+        StartCoroutine(FadeOutThenLoad(sceneName));
+    }
+
+    IEnumerator FadeOutThenLoad(string sceneName)
+    {
+        yield return Fade(0f, 1f);
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(sceneName);
+    }
+
+    IEnumerator Fade(float from, float to)
+    {
+        if (fadeImage == null) yield break;
+
+        float t = 0f;
+        Color c = fadeImage.color;
+        while (t < FadeDuration)
+        {
+            t += Time.unscaledDeltaTime; // works even while the game is paused.
+            c.a = Mathf.Lerp(from, to, t / FadeDuration);
+            fadeImage.color = c;
+            yield return null;
+        }
+        c.a = to;
+        fadeImage.color = c;
+    }
+
     // ----- Button callbacks ---------------------------------------------
 
     void OnStart()
     {
-        Time.timeScale = 1f;
-        SceneManager.LoadScene("Level1");
+        FadeAndLoad("Level1");
     }
 
     void OnQuit()
@@ -190,14 +260,12 @@ public class UIManager : MonoBehaviour
 
     void OnRestartFromWin()
     {
-        Time.timeScale = 1f;
-        SceneManager.LoadScene("Level1");
+        FadeAndLoad("Level1");
     }
 
     void OnMainMenu()
     {
-        Time.timeScale = 1f;
-        SceneManager.LoadScene("MainMenu");
+        FadeAndLoad("MainMenu");
     }
 
     // ----- Small UI factory helpers -------------------------------------

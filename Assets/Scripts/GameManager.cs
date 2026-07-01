@@ -105,7 +105,7 @@ public class GameManager : MonoBehaviour
         string nextScene = "Level" + (CurrentLevel + 1);
 
         if (Application.CanStreamedLevelBeLoaded(nextScene))
-            SceneManager.LoadScene(nextScene);
+            LoadScene(nextScene);
         else if (UIManager.Instance != null)
             UIManager.Instance.ShowWin(); // Finished the last level.
         else
@@ -114,13 +114,23 @@ public class GameManager : MonoBehaviour
 
     public void RestartLevel()
     {
-        Time.timeScale = 1f;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        LoadScene(SceneManager.GetActiveScene().name);
     }
 
     public void GoToMainMenu()
     {
-        Time.timeScale = 1f;
-        SceneManager.LoadScene("MainMenu");
+        LoadScene("MainMenu");
+    }
+
+    /// <summary>Loads a scene through the UI fade when possible.</summary>
+    void LoadScene(string sceneName)
+    {
+        if (UIManager.Instance != null)
+            UIManager.Instance.FadeAndLoad(sceneName);
+        else
+        {
+            Time.timeScale = 1f;
+            SceneManager.LoadScene(sceneName);
+        }
     }
 }

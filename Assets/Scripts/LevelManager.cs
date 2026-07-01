@@ -59,6 +59,7 @@ public class LevelManager : MonoBehaviour
     // Level 1: gentle introduction – a single gap to jump over.
     void BuildLevel1()
     {
+        CreateBackground("Art/bg_level1");
         CreateBlock("Ground", new Vector2(-9f, -4f), new Vector2(18f, 1f), GroundColor);
         CreateBlock("Ground", new Vector2(11f, -4f), new Vector2(14f, 1f), GroundColor);
 
@@ -70,6 +71,7 @@ public class LevelManager : MonoBehaviour
     // Level 2: more gaps, a floating platform and the first hazard.
     void BuildLevel2()
     {
+        CreateBackground("Art/bg_level2");
         CreateBlock("Ground", new Vector2(-16f, -4f), new Vector2(8f, 1f), GroundColor);
         CreateBlock("Ground", new Vector2(-6f, -4f), new Vector2(6f, 1f), GroundColor);
 
@@ -88,6 +90,7 @@ public class LevelManager : MonoBehaviour
     // Level 3: a run of narrow platforms and a guarded exit – the toughest level.
     void BuildLevel3()
     {
+        CreateBackground("Art/bg_level3");
         CreateBlock("Ground", new Vector2(-17f, -4f), new Vector2(6f, 1f), GroundColor);
 
         CreatePlatform(new Vector2(-9f, -3f), new Vector2(3f, 0.5f));
@@ -105,6 +108,35 @@ public class LevelManager : MonoBehaviour
     }
 
     // ----- Building blocks ----------------------------------------------
+
+    /// <summary>
+    /// Adds a full-screen background image, parented to the camera so it always
+    /// fills the view, and dimmed so the gameplay stays readable.
+    /// </summary>
+    void CreateBackground(string resourcePath)
+    {
+        Sprite bg = Resources.Load<Sprite>(resourcePath);
+        if (bg == null) return;
+
+        Camera cam = Camera.main;
+        GameObject go = new GameObject("Background");
+        SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
+        sr.sprite = bg;
+        sr.color = new Color(0.55f, 0.60f, 0.72f, 1f);
+        sr.sortingOrder = -100;
+
+        if (cam != null)
+        {
+            go.transform.SetParent(cam.transform, false);
+            go.transform.localPosition = new Vector3(0f, 0f, 10f);
+
+            float worldHeight = cam.orthographicSize * 2f;
+            float worldWidth = worldHeight * cam.aspect;
+            Vector2 spriteSize = bg.bounds.size;
+            go.transform.localScale = new Vector3(
+                worldWidth / spriteSize.x, worldHeight / spriteSize.y, 1f);
+        }
+    }
 
     /// <summary>Creates a solid, collidable block sized in world units.</summary>
     GameObject CreateBlock(string blockName, Vector2 position, Vector2 size, Color color)
@@ -168,11 +200,20 @@ public class LevelManager : MonoBehaviour
     {
         GameObject go = new GameObject("Player");
         go.transform.position = position;
-        go.transform.localScale = new Vector3(0.8f, 1.2f, 1f);
 
         SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
-        sr.sprite = squareSprite;
-        sr.color = PlayerColor;
+        Sprite playerSprite = Resources.Load<Sprite>("Art/player");
+        if (playerSprite != null)
+        {
+            sr.sprite = playerSprite;
+        }
+        else
+        {
+            // Fallback to the primitive look if the art is missing.
+            sr.sprite = squareSprite;
+            sr.color = PlayerColor;
+            go.transform.localScale = new Vector3(0.8f, 1.2f, 1f);
+        }
         sr.sortingOrder = 5;
 
         Rigidbody2D rb = go.AddComponent<Rigidbody2D>();
@@ -180,8 +221,9 @@ public class LevelManager : MonoBehaviour
         rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
         rb.interpolation = RigidbodyInterpolation2D.Interpolate;
 
+        // Collider fits the body (ignores the outstretched arm) for fair gameplay.
         BoxCollider2D box = go.AddComponent<BoxCollider2D>();
-        box.size = Vector2.one;
+        box.size = new Vector2(0.55f, 1.55f);
 
         go.AddComponent<PlayerController>();
         return go;
