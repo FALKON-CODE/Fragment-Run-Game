@@ -16,6 +16,18 @@ public class GameManager : MonoBehaviour
     /// <summary>Number of the level currently loaded (set by <see cref="LevelManager"/>).</summary>
     public int CurrentLevel { get; set; } = 1;
 
+    // ----- Fragments / score --------------------------------------------
+
+    /// <summary>Total fragments collected across the whole run (survives scene loads).</summary>
+    public static int SessionFragments { get; private set; }
+
+    /// <summary>Fragments collected / available in the current level.</summary>
+    public int FragmentsCollected { get; private set; }
+    public int FragmentsInLevel { get; private set; }
+
+    /// <summary>Clears the run-wide score. Called when a fresh run begins.</summary>
+    public static void ResetRun() => SessionFragments = 0;
+
     [Header("Timing")]
     [Tooltip("Delay before the next level loads after reaching the exit.")]
     public float levelCompleteDelay = 1f;
@@ -80,6 +92,27 @@ public class GameManager : MonoBehaviour
         if (UIManager.Instance != null) UIManager.Instance.SetPauseVisible(false);
     }
 
+    /// <summary>Tells the HUD how many fragments this level contains.</summary>
+    public void SetLevelFragments(int total)
+    {
+        FragmentsInLevel = total;
+        FragmentsCollected = 0;
+        if (UIManager.Instance != null)
+            UIManager.Instance.SetFragments(FragmentsCollected, FragmentsInLevel, SessionFragments);
+    }
+
+    /// <summary>Called by a <see cref="Collectible"/> when the player grabs it.</summary>
+    public void CollectFragment()
+    {
+        FragmentsCollected++;
+        SessionFragments++;
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.SetFragments(FragmentsCollected, FragmentsInLevel, SessionFragments);
+            UIManager.Instance.PingFragment();
+        }
+    }
+
     /// <summary>Called when the player enters the exit trigger.</summary>
     public void LevelComplete()
     {
@@ -107,7 +140,7 @@ public class GameManager : MonoBehaviour
         if (Application.CanStreamedLevelBeLoaded(nextScene))
             LoadScene(nextScene);
         else if (UIManager.Instance != null)
-            UIManager.Instance.ShowWin(); // Finished the last level.
+            UIManager.Instance.ShowWin(SessionFragments); // Finished the last level.
         else
             RestartLevel();
     }

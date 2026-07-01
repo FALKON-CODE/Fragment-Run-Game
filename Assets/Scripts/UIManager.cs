@@ -21,10 +21,16 @@ public class UIManager : MonoBehaviour
     private Font font;
     private Canvas canvas;
 
+    private static readonly Color Gold = new Color(1.00f, 0.86f, 0.30f);
+
     private GameObject pausePanel;
     private GameObject winPanel;
     private Text levelLabel;
     private Text bannerText;
+    private Text fragmentLabel;
+    private Image fragmentIcon;
+    private Text winScoreText;
+    private Coroutine pingRoutine;
 
     private Image fadeImage;
     private const float FadeDuration = 0.4f;
@@ -85,10 +91,41 @@ public class UIManager : MonoBehaviour
             bannerText.text = message;
     }
 
-    public void ShowWin()
+    public void ShowWin(int totalFragments)
     {
+        if (winScoreText != null)
+            winScoreText.text = "FRAGMENTS COLLECTED:  " + totalFragments;
         if (winPanel != null)
             winPanel.SetActive(true);
+    }
+
+    /// <summary>Updates the HUD fragment counter.</summary>
+    public void SetFragments(int collected, int inLevel, int session)
+    {
+        if (fragmentLabel != null)
+            fragmentLabel.text = collected + " / " + inLevel;
+    }
+
+    /// <summary>A quick pop on the fragment icon when one is picked up.</summary>
+    public void PingFragment()
+    {
+        if (fragmentIcon == null) return;
+        if (pingRoutine != null) StopCoroutine(pingRoutine);
+        pingRoutine = StartCoroutine(Ping());
+    }
+
+    IEnumerator Ping()
+    {
+        RectTransform rt = fragmentIcon.rectTransform;
+        float t = 0f;
+        while (t < 0.25f)
+        {
+            t += Time.unscaledDeltaTime;
+            float s = 1f + Mathf.Sin(t / 0.25f * Mathf.PI) * 0.6f;
+            rt.localScale = new Vector3(s, s, 1f);
+            yield return null;
+        }
+        rt.localScale = Vector3.one;
     }
 
     // ----- UI construction ----------------------------------------------
@@ -150,6 +187,28 @@ public class UIManager : MonoBehaviour
         lr.anchoredPosition = new Vector2(40, -30);
         levelLabel.alignment = TextAnchor.UpperLeft;
 
+        // Fragment counter (top-right) with a gold diamond icon that matches
+        // the collectible gems (a square sprite rotated 45°).
+        GameObject iconGo = new GameObject("FragmentIcon", typeof(Image));
+        iconGo.transform.SetParent(canvas.transform, false);
+        fragmentIcon = iconGo.GetComponent<Image>();
+        fragmentIcon.sprite = Resources.Load<Sprite>("Sprites/white");
+        fragmentIcon.color = Gold;
+        RectTransform ir = fragmentIcon.rectTransform;
+        ir.anchorMin = ir.anchorMax = new Vector2(1, 1);
+        ir.pivot = new Vector2(1, 1);
+        ir.sizeDelta = new Vector2(52, 52);
+        ir.anchoredPosition = new Vector2(-270, -42);
+        ir.localRotation = Quaternion.Euler(0, 0, 45f);
+
+        fragmentLabel = CreateText(canvas.transform, "0 / 0", 44, Gold,
+            Vector2.zero, new Vector2(230, 70), FontStyle.Bold);
+        RectTransform fr = fragmentLabel.rectTransform;
+        fr.anchorMin = fr.anchorMax = new Vector2(1, 1);
+        fr.pivot = new Vector2(1, 1);
+        fr.anchoredPosition = new Vector2(-40, -30);
+        fragmentLabel.alignment = TextAnchor.UpperRight;
+
         // Centre banner for "LEVEL COMPLETE" / "YOU DIED".
         bannerText = CreateText(canvas.transform, "", 80, Accent,
             new Vector2(0, 120), new Vector2(1400, 140), FontStyle.Bold);
@@ -175,9 +234,11 @@ public class UIManager : MonoBehaviour
         CreateText(winPanel.transform, "YOU ESCAPED!", 84, Accent,
             new Vector2(0, 200), new Vector2(1200, 140), FontStyle.Bold);
         CreateText(winPanel.transform, "Thanks for playing.", 34,
-            new Color(0.7f, 0.8f, 0.9f), new Vector2(0, 90), new Vector2(900, 60), FontStyle.Normal);
-        CreateButton(winPanel.transform, "PLAY AGAIN", new Vector2(0, -30), OnRestartFromWin);
-        CreateButton(winPanel.transform, "MAIN MENU", new Vector2(0, -150), OnMainMenu);
+            new Color(0.7f, 0.8f, 0.9f), new Vector2(0, 100), new Vector2(900, 60), FontStyle.Normal);
+        winScoreText = CreateText(winPanel.transform, "FRAGMENTS COLLECTED:  0", 40, Gold,
+            new Vector2(0, 30), new Vector2(1200, 70), FontStyle.Bold);
+        CreateButton(winPanel.transform, "PLAY AGAIN", new Vector2(0, -70), OnRestartFromWin);
+        CreateButton(winPanel.transform, "MAIN MENU", new Vector2(0, -190), OnMainMenu);
         winPanel.SetActive(false);
     }
 
@@ -234,6 +295,7 @@ public class UIManager : MonoBehaviour
 
     void OnStart()
     {
+        GameManager.ResetRun();
         FadeAndLoad("Level1");
     }
 
@@ -260,6 +322,7 @@ public class UIManager : MonoBehaviour
 
     void OnRestartFromWin()
     {
+        GameManager.ResetRun();
         FadeAndLoad("Level1");
     }
 
