@@ -1,7 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// Handles player horizontal movement, jumping and a simple camera follow.
+/// Handles player horizontal movement, jumping, a simple camera follow and
+/// reacting to the level's exit / falling out of the world.
 /// The player object is created at runtime by <see cref="LevelManager"/>.
 /// </summary>
 [RequireComponent(typeof(Rigidbody2D))]
@@ -11,10 +12,16 @@ public class PlayerController : MonoBehaviour
     public float moveSpeed = 6f;
     public float jumpForce = 12f;
 
+    [Header("Bounds")]
+    [Tooltip("Falling below this Y kills the player and restarts the level.")]
+    public float killY = -12f;
+
     private Rigidbody2D rb;
     private float moveInput;
     private bool grounded;
     private bool jumpQueued;
+
+    private bool CanControl => GameManager.Instance == null || GameManager.Instance.IsPlaying;
 
     void Awake()
     {
@@ -23,10 +30,20 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        if (!CanControl)
+        {
+            moveInput = 0f;
+            return;
+        }
+
         moveInput = Input.GetAxisRaw("Horizontal");
 
         if (Input.GetButtonDown("Jump") && grounded)
             jumpQueued = true;
+
+        // Died by falling out of the world.
+        if (transform.position.y < killY && GameManager.Instance != null)
+            GameManager.Instance.PlayerDied();
     }
 
     void FixedUpdate()
@@ -58,6 +75,16 @@ public class PlayerController : MonoBehaviour
     void OnCollisionExit2D(Collision2D collision)
     {
         grounded = false;
+    }
+
+    void OnTriggerEnter2D(Collider2D other)
+    {
+        if (GameManager.Instance == null) return;
+
+        if (other.CompareTag("Finish") || other.gameObject.name == "Exit")
+            GameManager.Instance.LevelComplete();
+        else if (other.gameObject.name == "Hazard")
+            GameManager.Instance.PlayerDied();
     }
 
     void LateUpdate()
