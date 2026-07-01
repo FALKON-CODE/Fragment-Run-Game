@@ -32,6 +32,10 @@ public class LevelManager : MonoBehaviour
             gameObject.AddComponent<GameManager>();
 
         GameManager.Instance.CurrentLevel = levelNumber;
+
+        // GameManager builds the UI in its Awake, so it exists by now.
+        if (UIManager.Instance != null)
+            UIManager.Instance.SetLevel(levelNumber);
     }
 
     void BuildLevel()

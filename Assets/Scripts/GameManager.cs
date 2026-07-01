@@ -3,8 +3,8 @@ using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Central game-flow controller for a level: tracks the current state,
-/// handles winning (reaching the exit), losing (falling) and scene loading.
-/// One instance lives per scene and is reachable through <see cref="Instance"/>.
+/// handles winning (reaching the exit), losing (falling), pausing and scene
+/// loading. One instance lives per scene and is reachable via <see cref="Instance"/>.
 /// </summary>
 public class GameManager : MonoBehaviour
 {
@@ -20,7 +20,7 @@ public class GameManager : MonoBehaviour
     [Tooltip("Delay before the next level loads after reaching the exit.")]
     public float levelCompleteDelay = 1f;
     [Tooltip("Delay before restarting after the player dies.")]
-    public float restartDelay = 0.6f;
+    public float restartDelay = 0.8f;
 
     /// <summary>True while the player is allowed to control the character.</summary>
     public bool IsPlaying => State == GameState.Playing;
@@ -33,6 +33,13 @@ public class GameManager : MonoBehaviour
             return;
         }
         Instance = this;
+
+        // Make sure time is running (it may have been paused before a scene load).
+        Time.timeScale = 1f;
+
+        // Every gameplay scene gets its UI built alongside the GameManager.
+        if (UIManager.Instance == null)
+            gameObject.AddComponent<UIManager>();
     }
 
     void OnDestroy()
@@ -41,12 +48,45 @@ public class GameManager : MonoBehaviour
             Instance = null;
     }
 
+    void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.Escape) &&
+            (State == GameState.Playing || State == GameState.Paused))
+        {
+            TogglePause();
+        }
+    }
+
+    // ----- State transitions --------------------------------------------
+
+    public void TogglePause()
+    {
+        if (State == GameState.Playing)
+        {
+            State = GameState.Paused;
+            Time.timeScale = 0f;
+            if (UIManager.Instance != null) UIManager.Instance.SetPauseVisible(true);
+        }
+        else if (State == GameState.Paused)
+        {
+            ResumeGame();
+        }
+    }
+
+    public void ResumeGame()
+    {
+        State = GameState.Playing;
+        Time.timeScale = 1f;
+        if (UIManager.Instance != null) UIManager.Instance.SetPauseVisible(false);
+    }
+
     /// <summary>Called when the player enters the exit trigger.</summary>
     public void LevelComplete()
     {
         if (State != GameState.Playing) return;
 
         State = GameState.LevelComplete;
+        if (UIManager.Instance != null) UIManager.Instance.ShowBanner("LEVEL COMPLETE");
         Invoke(nameof(LoadNextLevel), levelCompleteDelay);
     }
 
@@ -56,6 +96,7 @@ public class GameManager : MonoBehaviour
         if (State != GameState.Playing) return;
 
         State = GameState.GameOver;
+        if (UIManager.Instance != null) UIManager.Instance.ShowBanner("YOU DIED");
         Invoke(nameof(RestartLevel), restartDelay);
     }
 
@@ -65,12 +106,21 @@ public class GameManager : MonoBehaviour
 
         if (Application.CanStreamedLevelBeLoaded(nextScene))
             SceneManager.LoadScene(nextScene);
+        else if (UIManager.Instance != null)
+            UIManager.Instance.ShowWin(); // Finished the last level.
         else
-            RestartLevel(); // Last level for now; a proper win screen arrives with the UI.
+            RestartLevel();
     }
 
     public void RestartLevel()
     {
+        Time.timeScale = 1f;
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+
+    public void GoToMainMenu()
+    {
+        Time.timeScale = 1f;
+        SceneManager.LoadScene("MainMenu");
     }
 }
